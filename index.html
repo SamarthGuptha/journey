@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>journey</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div id="tooltip"></div>
+    <button id="btn-freeroam">Enable Free Roam</button>
+
+    <div id="ui-container">
+        <div id="left-panel" class="panel">
+            <h2>Source Input</h2>
+            <div class="instruction">Paste JS/TS code below.</div>
+            <textarea id="code-input" placeholder="// Paste your code here..."></textarea>
+            <button id="btn-generate">Generate Graph</button>
+            <button id="btn-clear">Clear</button>
+        </div>
+
+        <div id="right-panel" class="panel">
+            <h2>Structure</h2>
+            <div class="instruction">Click to focus. Scroll to fly.</div>
+            <div id="node-list"></div>
+        </div>
+    </div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
