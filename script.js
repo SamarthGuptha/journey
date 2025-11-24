@@ -192,3 +192,160 @@ function parseCode(code) {
 }
 
 
+//graph generation ;)
+
+
+function generateGraph(code) {
+    state.nodes.forEach(n=>scene.remove(n.mesh));
+    state.edges.forEach(e=>scene.remove(e.line));
+    state.particles.forEach(p=>scene.remove(p.mesh));
+    state.nodes = []; state.edges=[];state.particles=[];
+    document.getElementById('node-list').innerHTML='';
+
+    const data=parseCode(code);
+    let angle=0;
+    let currentY=0;
+
+    const geometries = {
+        module: new THREE.TorusGeometry(3, 0.5, 16, 50),
+        class: new THREE.CylinderGeometry(1, 1, 3, 6),
+        function: new THREE.BoxGeometry(2, 2, 2),
+        variable: new THREE.SphereGeometry(0.8, 16, 16)
+    };
+
+    data.forEach((nodeData, index) => {
+        const geometry = geometries[nodeData.type] || geometries.variable;
+        const color = CONFIG.colors[nodeData.type];
+        const material = baseGeometryMaterial.clone();
+        material.color.setHex(color);
+        material.emissive.setHex(color);
+        material.emissiveIntensity = 0.8;
+
+        const mesh = new THREE.Mesh(geometry, material);
+        if(index===0) {
+            mesh.position.set(0, 0, 0);
+        } else {
+            const r= 6+(index*0.4);
+            const x = Math.cos(angle)*r;
+            const y = Math.sin(angle)*r;
+            currentY-=2;
+            mesh.position.set(x, currentY, z);
+            angle+=1.0;
+        }
+        mesh.userData = { ...nodeData, originalScale: mesh.scale.clone(), isExpanded: false };
+        scene.add(mesh);
+        state.nodes.push({ mesh, ...nodeData });
+
+        const li = document.getElementById('div');
+        li.className = 'node-item';
+        li.innerHTML = `${nodeData.name} <span style="color:${'#'+color.toString(16)}">${nodeData.type}</span>`;
+        li.onclick = () => focusNode(index);
+        document.getElementById('node-list').appendChild(li);
+    });
+
+    state.nodes.forEach((node, i) => {
+        node.dependencies.forEach(depIndex => {
+            if(state.nodes[depIndex]) {
+                const start = state.nodes[depIndex].mesh.position;
+                const end = node.mesh.position;
+                const points = [start, end];
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const mat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.2 });
+                const line = new THREE.Line(geo, mat);
+                scene.add(line);
+                state.edges.push({ line });
+                state.particles.push({
+                    t: Math.random(),
+                    speed: 0.005 + Math.random()*0.01,
+                    start: start,
+                    end: end,
+                    mesh: createParticleMesh()
+                });
+            }
+        });
+    });
+
+    focusNode(0);
+}
+
+function createParticleMesh() {
+    const geo = new THREE.SphereGeometry(0.2, 8, 8);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff});
+    const mesh = new THREE.Mesh(geo, mat);
+    scene.add(mesh);
+    return mesh;
+}
+
+const targetCameraPos = new THREE.Vector3(0, 20, 40);
+const targetLookAt = new THREE.Vector3(0, 0, 0);
+
+function focusNode(index) {
+    if(!state.nodes[index]) return;
+    state.focusedNodeIndex = index;
+    const node = state.nodes[index].mesh;
+    const offset = new THREE.Vector3(6, 6, 12);
+
+    targetLookAt.copy(node.position)
+    targetCameraPos.copy(node.position).add(offset);
+
+    node.userData.isExpanded = !node.userData.isExpanded;
+}
+
+const btnFreeRoam = document.getElementById('btn-freeroam');
+const leftPanel = document.getElementById('left-panel');
+const rightPanel = document.getElementById('right-panel');
+
+btnFreeRoam.addEventListener('click', () => {
+    state.freeRoam = !state.freeRoam;
+    controls.enabled = state.freeRoam;
+
+    if(state.freeRoam) {
+        btnFreeRoam.textContent = "Exit Free Roam.";
+        leftPanel.classList.add('collapsed');
+        rightPanel.classList.add('collapsed');
+        controls.target.copy(targetLookAt);
+    } else {
+        btnFreeRoam.textContent = "Enable Free Roam";
+        leftPanel.classList.remove('collapsed');
+        rightPanel.classList.remove('collapsed');
+        focusNode(state.focusedNodeIndex !== -1 ? state.focusedNodeIndex : 0);
+    }
+});
+
+let scrollTimeout;
+window.addEventListener('wheel', (e) => {
+    if(state.freeRoam) return;
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+        let next = state.focusedNodeIndex + (e.deltaY>0?1:-1);
+        if(next>=0 && next<state.node.length) focusNode(next);
+    }, 30);
+});
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+
+window.addEventListener('mousemove', (e) => {
+    mouse.x = (e.clientX/window.innerWidth)*2-1;
+    mouse.y = -(e.clientY/window.innerHeight)*2+1;
+    tooltip.style.left = e.clientX+15+'px';
+    tooltip.style.top = e.clientY+15+'px';
+});
+
+
+
+window.addEventListener('click', (e) => {
+    
+    if(e.target.closest('.panel') || e.target.id === 'btn-freeroam') return;
+    if(state.freeRoam) return;
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(scene.children);
+    const nodeHit = hits.find(h => h.object.userData.id!==undefined);
+
+    if(nodeHit) {
+        const idx = state.nodes.findIndex(n=>n.id === nodeHit.object.userData.id);
+        focusNode(idx);
+    }
+});
