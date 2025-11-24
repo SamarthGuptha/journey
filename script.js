@@ -103,5 +103,92 @@ function createNeonGridTexture() {
     return tex;
 }
 
+const neonTexture = createNeonGridTexture();
+const baseGeometryMaterial = new THREE.MeshStandardMaterial({
+    map: neonTexture,
+    color: 0xffffff,
+    roughness: 0.2,
+    metalness: 0.8,
+});
+
+function parseCode(code) {
+    const lines = code.split('\n');
+    const detectedNodes = [];
+    
+    detectedNodes.push({
+        id: 0,
+        type: 'module',
+        name: 'Main',
+        line: 0,
+        snippet: 'Entry Point',
+        payload: 'System Init',
+        dependencies: []
+    });
+
+
+
+    const patterns = [
+        { type: 'class', regex: /class\s+(\w+)/ },
+        { type: 'function', regex: /(?:function\s+(\w+)|const\s+(\w+)\s*=\s*\(|(\w+)\s*:\s*function)/ },
+        { type: 'variable', regex: /(?:const|let|var)\s+(\w+)\s*=/ }
+    ];
+
+    lines.forEach((lineText, index) => {
+        patterns.forEach(p => {
+            const match = lineText.match(p.regex);
+            if(match) {
+                const name = match.filter(m => m !== undefined)[1];
+                if(name) {
+                    let inferredPayload = "Void / Signal";
+
+                    if(p.type === 'variable') {
+                        //RHS
+                        const parts = lineText.split('=');
+                        if (parts.length>1) {
+                            const rhs = parts[1].trim().replace(';', '');
+
+                            if(!isNaN(parseFloat(rhs))) {
+                                inferredPayload = `Number (${rhs})`;
+                            } else if (rhs.startsWith('"') || rhs.startsWith("'") || rhs.startsWith("`")) {
+                                let cleanStr = rhs.substring(0, 15);
+                                if(rhs.length>15) cleanStr+="...";
+                                inferredPayload = `String (${cleanStr})`;
+                            } else if(rhs === 'true' || rhs==='false') {
+                                inferredPayload = `Boolean (${cleanStr})`;
+                            } else if(rhs.startsWith('new ')) {
+                                inferredPayload = `Instance (${rhx.replace('new ', '')})`;
+                            } else if(rhs.startsWith('[')) {
+                                inferredPayload = `Array`;
+                            } else if(rhs.startsWith('{')) {
+                                inferredPayload = `Object`;
+                            } else {
+                                inferredPayload = `Reference`;
+                            }
+                        }
+                    } else if (p.type === 'function') {
+                        inferredPayload = "Action / Logic";
+                    } else if (p.type === 'class') {
+                        inferredPayload = "Class Structure";
+                    }
+
+                    detectedNodes.push({
+                        id: detectedNodes.length,
+                        type: p.type,
+                        name: name,
+                        line: index+1,
+                        snippet: lineText.trim(),
+                        payload: inferredPayload,
+                        dependencies: [0]
+                    });
+                }
+            }
+        });
+    });
+
+    for(let i=2;i<detectedNodes.length;i++) {
+        if(Math.random()>0.6) detectedNodes[i].dependencies.push(i-1);
+    }
+    return detectedNodes;
+}
 
 
