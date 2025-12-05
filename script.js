@@ -1,45 +1,30 @@
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-const CONFIG = {
-    colors: {
-        module: 0x0088ff,   // Blue
-        class: 0xff0055,    // Red/Pink
-        function: 0x00ffcc, // Cyan
-        variable: 0xffff00, // Yellow
-        helper: 0xaa00ff,   // Purple
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+const CONFIG = {colors: {
+        module: 0x0088ff,
+        class: 0xff0055,    
+        function: 0x00ffcc, 
+        variable: 0xffff00, 
+        helper: 0xaa00ff,   
         edge: 0x222222,
-        particle: 0xffffff
-    },
+        particle: 0xffffff},
     bloom: {
         threshold: 0.1,    
         strength: 0.6,     
-        radius: 0.2       
-    },
-    cameraSpeed: 0.05
-};
-
-let state = {
-    nodes: [],
-    edges: [],
-    focusedNodeIndex: -1,
-    particles: [],
-    freeRoam: false
-};
-
+        radius: 0.2},cameraSpeed: 0.05};
+let state = {nodes: [],edges: [],focusedNodeIndex: -1,particles: [],freeRoam: false};
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x020202);
 scene.fog = new THREE.FogExp2(0x020202, 0.003);
-
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 20, 40);
 
-const renderer = new THREE.WebGLRenderer({ antialias: false }); 
+const renderer = new THREE.WebGLRenderer({antialias: false}); 
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.toneMapping = THREE.ReinhardToneMapping;
@@ -62,13 +47,11 @@ const composer = new EffectComposer(renderer);
 composer.addPass(renderScene);
 composer.addPass(bloomPass);
 composer.addPass(outputPass);
-
 const ambientLight = new THREE.AmbientLight(0x111111);
 scene.add(ambientLight);
-const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+const pointLight = new THREE.PointLight(0xffffff, 1,100);
 pointLight.position.set(0, 20, 20);
 scene.add(pointLight);
-
 function createNeonGridTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -81,17 +64,17 @@ function createNeonGridTexture() {
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#00ffcc';
     ctx.beginPath();
-    for(let i=0; i<=512; i+=64) {
+    for(let i=0; i<=512; i+=64){
         ctx.moveTo(i, 0); ctx.lineTo(i, 512);
         ctx.moveTo(0, i); ctx.lineTo(512, i);
-    }
+}
     ctx.stroke();
-    ctx.fillStyle = '#ff0055';
+    ctx.fillStyle = '#ff0055'; //pink-reddish type colour :D
     ctx.shadowColor = '#ff0055';
     for(let i=0; i<5; i++) {
-        const x = Math.floor(Math.random() * 8) * 64;
-        const y = Math.floor(Math.random() * 8) * 64;
-        ctx.fillRect(x + 10, y + 10, 44, 44);
+        const x = Math.floor(Math.random() *8)*64;
+        const y = Math.floor(Math.random()* 8)*64;
+        ctx.fillRect(x +10, y+10, 44, 44);
     }
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping;
@@ -122,9 +105,9 @@ function parseCode(code) {
     });
 
     const patterns = [
-        { type: 'class', regex: /class\s+(\w+)/ },
-        { type: 'function', regex: /(?:function\s+(\w+)|const\s+(\w+)\s*=\s*\(|(\w+)\s*:\s*function)/ },
-        { type: 'variable', regex: /(?:const|let|var)\s+(\w+)\s*=/ }
+        {type: 'class', regex: /class\s+(\w+)/},
+        {type: 'function', regex: /(?:function\s+(\w+)|const\s+(\w+)\s*=\s*\(|(\w+)\s*:\s*function)/},
+        {type: 'variable', regex: /(?:const|let|var)\s+(\w+)\s*=/}
     ];
 
     lines.forEach((lineText, index) => {
@@ -133,17 +116,15 @@ function parseCode(code) {
             if (match) {
                 const name = match.filter(m => m !== undefined)[1];
                 if (name) {
-                    
                     let inferredPayload = "Void / Signal";
-                    
                     if (p.type === 'variable') {
                         const parts = lineText.split('=');
                         if (parts.length > 1) {
                             const rhs = parts[1].trim().replace(';', '');
-                            
+                            //js checking if ts type
                             if (!isNaN(parseFloat(rhs))) {
                                 inferredPayload = `Number (${rhs})`;
-                            } else if (rhs.startsWith('"') || rhs.startsWith("'") || rhs.startsWith("`")) {
+                        } else if (rhs.startsWith('"') || rhs.startsWith("'") || rhs.startsWith("`")) {
                                 let cleanStr = rhs.substring(0, 15);
                                 if (rhs.length > 15) cleanStr += "...";
                                 inferredPayload = `String (${cleanStr})`;
@@ -182,7 +163,6 @@ function parseCode(code) {
     for(let i=2; i<detectedNodes.length; i++) {
         if(Math.random() > 0.6) detectedNodes[i].dependencies.push(i-1);
     }
-
     return detectedNodes;
 }
 
@@ -205,7 +185,7 @@ function generateGraph(code) {
     };
 
     data.forEach((nodeData, index) => {
-        const geometry = geometries[nodeData.type] || geometries.variable;
+        const geometry = geometries[nodeData.type]||geometries.variable;
         const color = CONFIG.colors[nodeData.type];
         const material = baseGeometryMaterial.clone();
         material.color.setHex(color);
@@ -216,10 +196,10 @@ function generateGraph(code) {
         if (index === 0) {
             mesh.position.set(0, 0, 0);
         } else {
-            const r = 6 + (index * 0.4);
-            const x = Math.cos(angle) * r;
-            const z = Math.sin(angle) * r;
-            currentY -= 2;
+            const r = 6+ (index* 0.4);
+            const x = Math.cos(angle)*r;
+            const z = Math.sin(angle)* r;
+            currentY -=2;
             mesh.position.set(x, currentY, z);
             angle += 1.0;
         }
@@ -299,7 +279,7 @@ btnFreeRoam.addEventListener('click', () => {
         btnFreeRoam.textContent = "Enable Free Roam";
         leftPanel.classList.remove('collapsed');
         rightPanel.classList.remove('collapsed');
-        focusNode(state.focusedNodeIndex !==-1 ? state.focusedNodeIndex : 0);
+        focusNode(state.focusedNodeIndex !==-1 ?state.focusedNodeIndex : 0);
     }
 });
 
@@ -319,14 +299,14 @@ const mouse = new THREE.Vector2();
 const tooltip = document.getElementById('tooltip');
 
 window.addEventListener('mousemove', (e) => {
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    mouse.x = (e.clientX/window.innerWidth)* 2 - 1;
+    mouse.y = -(e.clientY/window.innerHeight)* 2 + 1;
     tooltip.style.left = e.clientX + 15 + 'px';
     tooltip.style.top = e.clientY + 15 + 'px';
 });
 
 window.addEventListener('click', (e) => {
-    if (e.target.closest('.panel') || e.target.id === 'btn-freeroam') return;
+    if (e.target.closest('.panel') ||e.target.id === 'btn-freeroam') return;
     if(state.freeRoam) return;
 
     raycaster.setFromCamera(mouse, camera);
@@ -369,7 +349,7 @@ function animate() {
             </div>
             <div class="content">
                 <div class="payload-row">
-                    <span class="payload-label">>> PAYLOAD TRANSMISSION</span>
+                    <span class="payload-label"PAYLOAD TRANSMISSION</span>
                     <span class="payload-value">${nodeHit.object.userData.payload}</span>
                 </div>
                 <code>${nodeHit.object.userData.snippet}</code>
@@ -384,7 +364,7 @@ function animate() {
 
     state.nodes.forEach(n => {
         const mesh = n.mesh;
-        const targetScale = mesh.userData.isExpanded ? 1.5 : 1;
+        const targetScale = mesh.userData.isExpanded?1.5:1;
         mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
         mesh.rotation.z += 0.01;
     });
@@ -393,7 +373,7 @@ function animate() {
 }
 
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
@@ -411,23 +391,7 @@ document.getElementById('btn-clear').onclick = () => {
 };
 
 const saved = localStorage.getItem('neonCode');
-const demo = `
-class CyberDeck {
-constructor() {
-this.security = "MAX";
-}
-}
-function hackMainframe() {
-const firewall = 9000;
-bypass(firewall);
-}
-function bypass(target) {
-let success = true;
-}
-const ICE_BREAKER = "v2.0";
-const IS_ACTIVE = true;
-`;
-document.getElementById('code-input').value = saved || demo.trim();
+document.getElementById('code-input').value = saved;
 generateGraph(document.getElementById('code-input').value);
 
 animate();
